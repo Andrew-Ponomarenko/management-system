@@ -21,3 +21,14 @@ func DbQuerier(tableToQuery string) (*sql.Rows, error) {
 	defer dbqrows.Close()
 	return dbqrows,err
 }
+	if err != nil {
+		log.Fatal(err)
+	}
+	var dbqrows *sql.Rows
+	dbqrows, err = db.Query("SELECT * FROM "+ tableToQuery) //query из бази в rows
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer dbqrows.Close()
+	return dbqrows,err
+}
