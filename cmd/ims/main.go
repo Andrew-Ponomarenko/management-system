@@ -2,17 +2,17 @@ package main
 
 import (
     "fmt"
-    dbquery "github.com/omc-college/management-system/cmd/ims/dbq"
-    "github.com/omc-college/management-system/pkg/rbac/models"
+    "github.com/omc-college/management-system/pkg/ims/repository/postgres"
+    "github.com/omc-college/management-system/pkg/ims/models"
     "log"
     "net/http"
 )
 
 func main() {
     rows,err:=dbquery.DbQuerier("roles")//passing which table you need to query from into the querier
-    rls := make([]*models.Role, 0)
+    rls := make([]*models.Roles, 0)
     for rows.Next() {
-        rl:= new(models.Role)
+        rl:= new(models.Roles)
         err := rows.Scan(rl.ID, rl.Name, rl.Entries)
         if err != nil {
             log.Fatal(err)
