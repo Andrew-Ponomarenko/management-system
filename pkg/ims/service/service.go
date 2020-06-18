@@ -138,6 +138,94 @@ func (service *SignUpService) EmailVerificationToken (token *models.EmailVerific
 	}
 
 	return nil
+	func (service *SignUpService) ResetPassword(request *models.SignupRequest) error {
+	var user *models.User
+	var err error
+	var tok models.EmailVerificationTokens
+
+	user.Email = request.Email
+	tok.VerificationToken = token()
+
+	tx, err := service.db.Beginx()
+	if err != nil {
+		return err
+	}
+
+    userRepo := postgresql.NewUsersRepository(tx)
+	user, err = userRepo.GetUserByEmail(user.Email)
+	if err != nil {
+		return err
+	}
+	from := "noreply@managementsystem.com"
+	host := "mail.managementsystem.com"
+	auth := smtp.PlainAuth("", from, "password", host)
+	message := fmt.Sprintf(`To: "Some User" <someuser@example.com>
+From: "mailbot" <%s>
+Subject: Password reset
+"Dear %s,
+
+You recently requested to reset your password for your managementsystem account. Click the link below to reset it.
+%s
+If you did not request a password reset, please ignore this email or reply to let us know. This password reset link is only valid for the next 2 hours."
+`,from,user.Email,fmt.Sprintf("http://managementsystem.com/confirmedreset?token=%s",tok))
+	if user.Email != "" {
+		smtp.SendMail(
+			host+":25", auth, from,[]string{user.Email}, []byte(message))
+
+	}
+	signUpRepo := postgresql.NewSignUpRepository(tx)
+	err = signUpRepo.InsertEmailVerificationToken(&tok)
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func (service *SignUpService) ConfirmedReset(request *models.SignupRequest,tok *models.EmailVerificationTokens) error {
+	var user *models.User
+	var cred *models.Credentials
+	var err error
+
+	tx, err := service.db.Beginx()
+	if err != nil {
+		return err
+	}
+
+	userRepo := postgresql.NewUsersRepository(tx)
+	credRepo := postgresql.NewCredentialsRepository(tx)
+
+
+	user.Email, err = userRepo.GetEmailByToken(tok)
+	if err != nil {
+		return err
+	}
+
+	user, err = userRepo.GetUserByEmail(user.Email)
+	if err != nil {
+		return err
+	}
+
+    cred, err = credRepo.GetCredentialByUserID(string(user.ID))
+	if err != nil {
+		return err
+	}
+
+	cred.Salt = pwd.Salt(256 - len(request.Password))
+
+	cred.PasswordHash, err = pwd.Hash(request.Password, cred.Salt)
+	if err != nil {
+		return err
+	}
+
+    credRepo.UpdateCredentials(cred)
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Send Email Verification Token function must be here!
